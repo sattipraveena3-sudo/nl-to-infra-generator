@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    ports: ["8000:8000"]
+    depends_on: [localstack]
+  localstack:
+    image: localstack/localstack:3.8
+    environment:
+      SERVICES: s3,lambda,dynamodb,iam
+    ports: ["4566:4566"]

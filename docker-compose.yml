@@ -1,10 +1,42 @@
 services:
   app:
     build: .
-    ports: ["8000:8000"]
-    depends_on: [localstack]
+    ports:
+      - "8000:8000"
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5-coder:3b}
+      TF_PLUGIN_CACHE_DIR: /terraform-cache
+    volumes:
+      - terraform-cache:/terraform-cache
+    depends_on:
+      localstack:
+        condition: service_healthy
+
   localstack:
     image: localstack/localstack:3.8
+    ports:
+      - "4566:4566"
     environment:
-      SERVICES: s3,lambda,dynamodb,iam
-    ports: ["4566:4566"]
+      SERVICES: s3,lambda,dynamodb,iam,sts,logs
+      DEBUG: ${LOCALSTACK_DEBUG:-0}
+    volumes:
+      - localstack-data:/var/lib/localstack
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  ollama:
+    image: ollama/ollama:0.11.4
+    profiles: ["llm"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+
+volumes:
+  localstack-data:
+  terraform-cache:
+  ollama-data:

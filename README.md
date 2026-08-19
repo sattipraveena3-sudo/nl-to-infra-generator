@@ -52,11 +52,13 @@ The response contains the structured specification, parser used, every generated
 ## Tests
 
 ```bash
-pip install -r requirements.txt
-pytest
+python -m pip install -e ".[dev]"
+ruff check app tests
+ruff format --check app tests
+pytest -q
 ```
 
-Tests cover parameter extraction, dependency inference, modular output, security controls, broken-HCL rejection, API bundles, and real Terraform `fmt/init/validate` when the binary is installed.
+Tests cover parameter extraction, dependency inference, modular output, security controls, broken-HCL rejection, API bundles, and real Terraform `fmt/init/validate` when the binary is installed. GitHub Actions runs the complete suite on Python 3.11 and 3.12 with Terraform 1.15.9, builds the wheel, and verifies the production container.
 
 ## Boundaries
 

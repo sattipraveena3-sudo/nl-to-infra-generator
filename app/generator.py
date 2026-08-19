@@ -9,23 +9,23 @@ def _block(enabled: bool, value: str) -> str:
 
 def generate_project(spec: ResourceSpec) -> dict[str, str]:
     versions = dedent(
-        f'''\
-        terraform {{
+        """\
+        terraform {
           required_version = ">= 1.6.0"
 
-          required_providers {{
-            aws = {{
+          required_providers {
+            aws = {
               source  = "hashicorp/aws"
               version = "~> 5.0"
-            }}
-            archive = {{
+            }
+            archive = {
               source  = "hashicorp/archive"
               version = "~> 2.4"
-            }}
-          }}
-        }}
+            }
+          }
+        }
 
-        provider "aws" {{
+        provider "aws" {
           region                      = var.aws_region
           access_key                  = var.aws_access_key
           secret_key                  = var.aws_secret_key
@@ -34,15 +34,15 @@ def generate_project(spec: ResourceSpec) -> dict[str, str]:
           skip_requesting_account_id  = var.use_localstack
           s3_use_path_style           = var.use_localstack
 
-          endpoints {{
+          endpoints {
             dynamodb = var.use_localstack ? var.localstack_endpoint : null
             iam      = var.use_localstack ? var.localstack_endpoint : null
             lambda   = var.use_localstack ? var.localstack_endpoint : null
             s3       = var.use_localstack ? var.localstack_endpoint : null
             sts      = var.use_localstack ? var.localstack_endpoint : null
-          }}
-        }}
-        '''
+          }
+        }
+        """
     )
 
     variables = dedent(
@@ -87,7 +87,7 @@ def generate_project(spec: ResourceSpec) -> dict[str, str]:
 
     resources = [
         dedent(
-            '''\
+            """\
             locals {
               common_tags = {
                 Project     = var.name_prefix
@@ -95,14 +95,14 @@ def generate_project(spec: ResourceSpec) -> dict[str, str]:
                 Environment = "demo"
               }
             }
-            '''
+            """
         ).strip()
     ]
     outputs: list[str] = []
 
     s3 = _block(
         spec.s3_bucket,
-        '''
+        """
         resource "aws_s3_bucket" "uploads" {
           bucket        = "${var.name_prefix}-uploads"
           force_destroy = true
@@ -116,17 +116,15 @@ def generate_project(spec: ResourceSpec) -> dict[str, str]:
           ignore_public_acls      = true
           restrict_public_buckets = true
         }
-        ''',
+        """,
     )
     if s3:
         resources.append(s3)
-        outputs.append(
-            'output "bucket_name" {\n  value = aws_s3_bucket.uploads.id\n}'
-        )
+        outputs.append('output "bucket_name" {\n  value = aws_s3_bucket.uploads.id\n}')
 
     versioning = _block(
         spec.s3_bucket and spec.bucket_versioning,
-        '''
+        """
         resource "aws_s3_bucket_versioning" "uploads" {
           bucket = aws_s3_bucket.uploads.id
 
@@ -134,14 +132,14 @@ def generate_project(spec: ResourceSpec) -> dict[str, str]:
             status = "Enabled"
           }
         }
-        ''',
+        """,
     )
     if versioning:
         resources.append(versioning)
 
     encryption = _block(
         spec.s3_bucket and spec.bucket_encryption,
-        '''
+        """
         resource "aws_s3_bucket_server_side_encryption_configuration" "uploads" {
           bucket = aws_s3_bucket.uploads.id
 
@@ -151,14 +149,14 @@ def generate_project(spec: ResourceSpec) -> dict[str, str]:
             }
           }
         }
-        ''',
+        """,
     )
     if encryption:
         resources.append(encryption)
 
     iam = _block(
         spec.iam_role,
-        '''
+        """
         resource "aws_iam_role" "lambda" {
           name = "${var.name_prefix}-lambda-role"
           assume_role_policy = jsonencode({
@@ -188,7 +186,7 @@ def generate_project(spec: ResourceSpec) -> dict[str, str]:
             }]
           })
         }
-        ''',
+        """,
     )
     if iam:
         resources.append(iam)
@@ -196,18 +194,18 @@ def generate_project(spec: ResourceSpec) -> dict[str, str]:
     environment = ""
     if spec.dynamodb_table:
         environment = dedent(
-            '''
+            """
             environment {
               variables = {
                 TABLE_NAME = aws_dynamodb_table.records.name
               }
             }
-            '''
+            """
         ).rstrip()
 
     lambda_resource = _block(
         spec.lambda_function,
-        f'''
+        f"""
         data "archive_file" "lambda" {{
           type        = "zip"
           source_file = "${{path.module}}/lambda/handler.py"
@@ -226,7 +224,7 @@ def generate_project(spec: ResourceSpec) -> dict[str, str]:
           {environment}
           tags = local.common_tags
         }}
-        ''',
+        """,
     )
     if lambda_resource:
         resources.append(lambda_resource)
@@ -236,7 +234,7 @@ def generate_project(spec: ResourceSpec) -> dict[str, str]:
 
     dynamodb = _block(
         spec.dynamodb_table,
-        '''
+        """
         resource "aws_dynamodb_table" "records" {
           name         = "${var.name_prefix}-records"
           billing_mode = "PAY_PER_REQUEST"
@@ -257,17 +255,15 @@ def generate_project(spec: ResourceSpec) -> dict[str, str]:
 
           tags = local.common_tags
         }
-        ''',
+        """,
     )
     if dynamodb:
         resources.append(dynamodb)
-        outputs.append(
-            'output "table_name" {\n  value = aws_dynamodb_table.records.name\n}'
-        )
+        outputs.append('output "table_name" {\n  value = aws_dynamodb_table.records.name\n}')
 
     notification = _block(
         spec.s3_trigger,
-        '''
+        """
         resource "aws_lambda_permission" "allow_s3" {
           statement_id  = "AllowS3Invoke"
           action        = "lambda:InvokeFunction"
@@ -286,13 +282,13 @@ def generate_project(spec: ResourceSpec) -> dict[str, str]:
 
           depends_on = [aws_lambda_permission.allow_s3]
         }
-        ''',
+        """,
     )
     if notification:
         resources.append(notification)
 
     handler = dedent(
-        '''\
+        """\
         import json
 
 
@@ -308,7 +304,7 @@ def generate_project(spec: ResourceSpec) -> dict[str, str]:
                 "statusCode": 200,
                 "body": json.dumps({"processed": records}),
             }
-        '''
+        """
     )
 
     return {
@@ -317,10 +313,10 @@ def generate_project(spec: ResourceSpec) -> dict[str, str]:
         "main.tf": "\n\n".join(resources) + "\n",
         "outputs.tf": "\n\n".join(outputs) + "\n",
         "terraform.tfvars.example": dedent(
-            '''\
+            """\
             use_localstack     = true
             localstack_endpoint = "http://localhost:4566"
-            '''
+            """
         ),
         "lambda/handler.py": handler,
     }
@@ -329,6 +325,5 @@ def generate_project(spec: ResourceSpec) -> dict[str, str]:
 def generate_terraform(spec: ResourceSpec) -> str:
     files = generate_project(spec)
     return "\n".join(
-        files[name]
-        for name in ("versions.tf", "variables.tf", "main.tf", "outputs.tf")
+        files[name] for name in ("versions.tf", "variables.tf", "main.tf", "outputs.tf")
     )

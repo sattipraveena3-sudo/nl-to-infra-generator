@@ -1,7 +1,37 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name="nl-to-infra-generator"
-version="1.0.0"
-requires-python=">=3.11"
+name = "nl-to-infra-generator"
+version = "1.0.0"
+description = "Generate and validate secure scoped Terraform from natural-language AWS requests"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi==0.139.2",
+  "uvicorn[standard]==0.35.0",
+  "pydantic==2.11.7",
+  "httpx==0.28.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==8.4.1", "ruff==0.16.3"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+app = ["static/*.html"]
+
 [tool.pytest.ini_options]
-pythonpath=["."]
-testpaths=["tests"]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
